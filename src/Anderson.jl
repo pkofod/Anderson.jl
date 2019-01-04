@@ -45,7 +45,7 @@ end
 
 
 # if some term converges exactly, you can get lapack errors (try to set an x to the true value)
-function anderson(g, xin; itmax = 1000, mMax = 5)
+function anderson(g, xin; itmax = 1000, mMax = 1)
     x = copy(xin)
     xlen = length(x)
     G = zeros(xlen, mMax)
@@ -58,8 +58,8 @@ function anderson(g, xin; itmax = 1000, mMax = 5)
     mAA = 0
     for k = 0:itmax
 
-        gval = g(x)
-        fval = gval - x
+        gval .= g(x)
+        fval .= gval - x
 
         if k > 0
             Δf = fval - fold
@@ -75,7 +75,9 @@ function anderson(g, xin; itmax = 1000, mMax = 5)
         copyto!(fold, fval)
         copyto!(gold, gval)
         if mAA == 0
+            println("First iteration")
             copyto!(x, gval)
+            println()
         else
             if mAA > 1
                 if mAA > mMax
@@ -83,17 +85,20 @@ function anderson(g, xin; itmax = 1000, mMax = 5)
                     mAA = mAA - 1
                 end
                 for i = 1:mAA-1
-                    @show i
+                    @show i, mAA
                     R[i, mAA] = dot(Q[:, i], Δf)
                     Δf = Δf - R[i, mAA]*Q[:, i]
                 end
             end
 
             R[mAA, mAA] = norm(Δf, 2)
-            @show R
+            @show R, mAA
             @show Δf
             @show cond(R[1:mAA, 1:mAA])
+            @show k
+            @show mAA
             Q[:, mAA] = Δf/R[mAA, mAA]
+            @show Q
             γ = R[1:mAA,1:mAA]\(Q[:, 1:mAA]'*Δf)
             @show - G[:, 1:mAA]*γ
             @show x
