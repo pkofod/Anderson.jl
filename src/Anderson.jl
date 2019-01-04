@@ -1,5 +1,5 @@
 module Anderson
-
+using LinearAlgebra
 struct Anderson
     memory
     delay
@@ -45,39 +45,33 @@ end
 
 
 # if some term converges exactly, you can get lapack errors (try to set an x to the true value)
-function anderson(g, xin; itmax = 1000, mMax = 1)
+function anderson(g, xin; itmax = 1000, mMax = 1, delay=0)
     x = copy(xin)
     xlen = length(x)
     G = zeros(xlen, mMax)
     R = zeros(mMax, mMax)
     Q = zeros(xlen, mMax)
-    fold = similar(x)
-    gold = similar(x)
+    fold, gold = similar(x), similar(x)
     fval = similar(x)
     gval = similar(x)
     mAA = 0
-    for k = 0:itmax
-
+    for k = -delay:itmax
         gval .= g(x)
         fval .= gval - x
-
+        if norm(fval, Inf) < 1e-9
+            return x
+        end
         if k > 0
             Δf = fval - fold
             Δg = gval - gold
             G_index = mAA < mMax ? k : mMax
             G[:, G_index] = Δg
             mAA = mAA + 1
-        #    if norm(Δf) < 1e-8 || norm(Δg) < 1e-8
-        #        println("ayo, converged")
-        #        break
-        #    end
         end
         copyto!(fold, fval)
         copyto!(gold, gval)
-        if mAA == 0
-            println("First iteration")
+        if mAA == 0 || mMax == 0
             copyto!(x, gval)
-            println()
         else
             if mAA > 1
                 if mAA > mMax
@@ -85,30 +79,17 @@ function anderson(g, xin; itmax = 1000, mMax = 1)
                     mAA = mAA - 1
                 end
                 for i = 1:mAA-1
-                    @show i, mAA
                     R[i, mAA] = dot(Q[:, i], Δf)
                     Δf = Δf - R[i, mAA]*Q[:, i]
                 end
             end
 
             R[mAA, mAA] = norm(Δf, 2)
-            @show R, mAA
-            @show Δf
-            @show cond(R[1:mAA, 1:mAA])
-            @show k
-            @show mAA
             Q[:, mAA] = Δf/R[mAA, mAA]
-            @show Q
-            γ = R[1:mAA,1:mAA]\(Q[:, 1:mAA]'*Δf)
-            @show - G[:, 1:mAA]*γ
-            @show x
-            @show gval
-            @show G[:, 1:mAA]
-            @show γ
+
+            γ = R[1:mAA,1:mAA]\(Q[:, 1:mAA]'*fval)
             x = gval - G[:, 1:mAA]*γ
-            @show x
         end
-        println()
     end
     x
 end
