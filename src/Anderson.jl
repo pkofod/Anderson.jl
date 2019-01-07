@@ -200,8 +200,7 @@ function anderson!(g, x::AbstractArray{T}, cache; itermax = 1000, delay=0, tol=s
 
 
         if !isa(droptol, Nothing)
-            Rcv[m_eff] .= Rv[m_eff]
-            condR = cond!(Rcv[m_eff])
+            condR = cond(Rv[m_eff])
             while condR > droptol && m_eff > 1
                 qrdelete!(Qv[m_eff], Rv[m_eff])
                 for j = 2:m_eff
@@ -210,8 +209,7 @@ function anderson!(g, x::AbstractArray{T}, cache; itermax = 1000, delay=0, tol=s
                     end
                 end
                 m_eff = m_eff - 1
-                Rcv[m_eff] .= Rv[m_eff]
-                condR = cond!(Rcv[m_eff])
+                condR = cond(Rv[m_eff])
             end
         end
 
@@ -222,7 +220,7 @@ function anderson!(g, x::AbstractArray{T}, cache; itermax = 1000, delay=0, tol=s
         x .= gcur .- mul!(x_cache, Gv[m_eff], γ[m_eff])
         if !isa(beta, Nothing)
 #            x .= x .- (1 .- beta)*(fcur .- Q[m_eff]*R[m_eff]*γ[m_eff])
-            x .= x .- (1 .- beta).*(fcur .- Q[m_eff]*R[m_eff]*γ[m_eff])
+            x .= x .- (1 .- beta).*(fcur .- mul!(x_cache, Qv[m_eff], mul!(m_eff_cache[m_eff], Rv[m_eff], γ[m_eff])))
         end
     end
     printstyled("Failure!\n"; color=9)
