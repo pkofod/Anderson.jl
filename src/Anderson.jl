@@ -11,7 +11,8 @@ invalid on exit.
 function qrdelete!(Q::AbstractMatrix{T}, R) where T
     n, m = size(Q)
     for i = 1:m-1
-        temp = sqrt(R[i, i+1]^2 + R[i+1, i+1]^2)
+        #temp = sqrt(R[i, i+1]^2 + R[i+1, i+1]^2)
+        temp = hypot(R[i, i+1], R[i+1, i+1])
         c = R[i, i+1]/temp
         s = R[i+1, i+1]/temp
         R[i, i+1] = temp
