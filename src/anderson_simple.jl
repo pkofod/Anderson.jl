@@ -45,32 +45,26 @@ function AndersonCache(x0, m)
     AndersonCache(G, Gv, R, Rv, Rcv, Q, Qv, fold, fcur, Δf, gold, gcur, Δg, m_corrected, γv, m_cache, x_cache)
 end
 
-
-# if some term converges exactly, you can get lapack errors (try to set an x to the true value)
-function anderson(g, x0; itermax=1000, m=10, delay=0, mutate_x0=false, droptol=1e10, beta=nothing)
+function simpleanderson(g, x0::AbstractArray{T}; m = 10, itermax = 1000, delay=0, tol=sqrt(eps(T)), droptol=T(1e10), beta=nothing) where T
     if mutate_x0
         x = x0
     else
         x = copy(x0)
     end
-    cache = AndersonCache(x0, m)
-    anderson!(g, x, cache; itermax=itermax, delay=delay, droptol=droptol, beta=beta)
-end
 
-
-function simpleanderson(g, x::AbstractArray{T}; m = 10, itermax = 1000, delay=0, tol=sqrt(eps(T)), droptol=T(1e10), beta=nothing) where T
-
+    xlen= length(x)
     m = min(length(x), m)
 
     function_iterations = delay+1 # always do one function iteration to set up gold and fold
-    x, function_converged = function_iteration!(g, x, function_iterations, tol, gcur, fcur)
+
+    x, function_converged = function_iteration(g, x, function_iterations, tol)
     if function_converged
         println("Converged before acceleration began")
         return x, true, 0
     end
     # k is now 0
     if m == 0
-        x, function_converged = function_iteration!(g, x, itermax, tol, gcur, fcur)
+        x, function_converged = function_iteration(g, x, itermax, tol)
         if function_converged
             println("Converged without acceleration (m=0).")
             return x, true, 0
@@ -81,35 +75,32 @@ function simpleanderson(g, x::AbstractArray{T}; m = 10, itermax = 1000, delay=0,
 
     # Since we always do one function iteration we can store the current values
     # in gold and fold. We've already checked for convergence.
-    gold .= gcur
-    fold .= fcur
     # m_eff is the current history length (<= cache)
     m_eff = 0
     verbose = false
     # start acceleration
     for k = 1:itermax
-        #gcur .= g(x)
-        g(gcur, x)
-        fcur .= gcur .- x
+        gcur = g(x)
+        fcur = gcur - x
         verbose && println()
         verbose && println("$k) Residual: ", norm(fcur, Inf))
         if norm(fcur, Inf) < tol
             return x, true, k
         end
-        Δf .= fcur .- fold
-        Δg .= gcur .- gold
+        Δf = fcur - fold
+        Δg = gcur - gold
 
         # now that we have the difference, we can update the cache arrays
         # for f and g
-        copyto!(fold, fcur)
-        copyto!(gold, gcur)
+        fold = copy(fcur)
+        gold = copy(gcur)
 
         # if effective memory counter is below the maximum
         # memory length, use the iteration index. Otherwise, update from the
         # right.
         m_eff = m_eff + 1
         if m_eff <= m
-            G[:, m_eff] = Δg
+            G = [G, Δg]
         else
             for i = 1:size(G, 1)
                 for j = 2:m

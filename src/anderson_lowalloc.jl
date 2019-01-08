@@ -141,12 +141,7 @@ function anderson!(g, x::AbstractArray{T}, cache; itermax = 1000, delay=0, tol=s
             end
         end
        R[m_eff, m_eff] = norm(Δf, 2)
-        # R[m_eff, m_eff] = T(0)
-        # for j = 1:length(Δf)
-        #     R[m_eff, m_eff] += Δf[j]^2
-        # end
-        # R[m_eff, m_eff] = sqrt(R[m_eff, m_eff])
-        Q[:, m_eff] .= Δf./R[m_eff, m_eff]
+       Q[:, m_eff] .= Δf./R[m_eff, m_eff]
 
 
         if !isa(droptol, Nothing)
